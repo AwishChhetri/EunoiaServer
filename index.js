@@ -9,9 +9,7 @@ app.use(cors());
 app.use(express.json());
 
 // Connect to MongoDB using Mongoose
-mongoose.connect('mongodb+srv://abish:l2TFchymzqLLYAOY@cluster0.btfwxae.mongodb.net/?retryWrites=true&w=majority', {
-  
-});
+mongoose.connect('mongodb+srv://abish:l2TFchymzqLLYAOY@cluster0.btfwxae.mongodb.net/?retryWrites=true&w=majority', { useNewUrlParser: true, useUnifiedTopology: true });
 
 // Create a User schema
 const userSchema = new mongoose.Schema({
@@ -91,10 +89,7 @@ app.post('/api/login', async (req, res) => {
       }
   
       // Generate JWT token with email and user ID
-      const token = jwt.sign({ userId: user._id, email,phoneNumber,
-        age,
-        maritalStatus,
-        gender }, 'your_secret_key', {
+      const token = jwt.sign({ userId: user._id, email }, 'your_secret_key', {
         expiresIn: '1h',
       });
   
