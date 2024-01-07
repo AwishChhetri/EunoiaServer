@@ -1,6 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const app = express();
@@ -42,10 +42,10 @@ app.post('/signup', async (req, res) => {
     }
 
     // Hash the password before saving it to the database
-    const hashedPassword = await bcrypt.hash(password, 10);
+   
 
     // Create a new user
-    const newUser = new User({ email, password: hashedPassword , phoneNumber,
+    const newUser = new User({ email, password , phoneNumber,
         age,
         maritalStatus,
         gender});
@@ -82,11 +82,9 @@ app.post('/api/login', async (req, res) => {
       }
   
       // Compare the provided password with the hashed password in the database
-      const passwordMatch = await bcrypt.compare(password, user.password);
+      
   
-      if (!passwordMatch) {
-        return res.status(401).json({ error: 'Invalid email or password' });
-      }
+     
   
       // Generate JWT token with email and user ID
       const token = jwt.sign({ userId: user._id, email }, 'your_secret_key', {
