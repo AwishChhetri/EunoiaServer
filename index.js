@@ -4,8 +4,7 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
-const env = require('dotenv'); 
-const bcrypt=require("bcrypt")
+const env = require('dotenv');
 const app = express();
 const port = 3000;
 
@@ -16,22 +15,19 @@ env.config(); // Initialize dotenv
 // Connect to MongoDB using Mongoose
 mongoose.connect(`mongodb+srv://abish:l2TFchymzqLLYAOY@cluster0.btfwxae.mongodb.net/?retryWrites=true&w=majority`,);
 
-
-
 // Create a User schema
 const userSchema = new mongoose.Schema({
   name: String,
   email: String,
-  password: String,
   phoneNumber: String,
   age: Number,
   maritalStatus: String,
   gender: String,
+  password: String, // Keep password field for demonstration, but remember to hash it in production
 });
 
 // Create a User model
 const User = mongoose.model('User', userSchema);
-
 
 const authenticateToken = (req, res, next) => {
   const token = req.header('Authorization');
@@ -45,11 +41,10 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-
 // Signup route with JWT token
 app.post('/signup', async (req, res) => {
   try {
-    const { email,name, phoneNumber, age, maritalStatus, gender, password } = req.body;
+    const { email, name, phoneNumber, age, maritalStatus, gender, password } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -57,19 +52,17 @@ app.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'User with this email already exists.' });
     }
 
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create a new user with hashed password
-    const newUser = new User({ email,name, password: hashedPassword, phoneNumber, age, maritalStatus, gender });
+    // Create a new user
+    const newUser = new User({ email, name, phoneNumber, age, maritalStatus, gender, password });
 
     // Save the user to the database
     await newUser.save();
-    console.log(newUser)
+    console.log(newUser);
+
     // Generate JWT token with email and user ID
     const token = jwt.sign(
-      { userId: newUser._id,name, email, phoneNumber, age, maritalStatus, gender },
-      process.env.JWT_SECRET, // Use the JWT secret from environment variables
+      { userId: newUser._id, name, email, phoneNumber, age, maritalStatus, gender },
+      process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
@@ -81,10 +74,8 @@ app.post('/signup', async (req, res) => {
   }
 });
 
-
-
 app.post('/api/login', async (req, res) => {
-  console.log("heloo")
+  console.log("hello")
   try {
     const { email, password } = req.body;
 
@@ -96,9 +87,7 @@ app.post('/api/login', async (req, res) => {
     }
 
     // Check if the password matches
-    const passwordMatch = await bcrypt.compare(password, user.password);
-
-    if (!passwordMatch) {
+    if (password !== user.password) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -115,7 +104,6 @@ app.post('/api/login', async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 });
-
 
 app.post('/api/payment/orders', async (req, res) => {
   console.log('order');
@@ -207,7 +195,6 @@ app.get('/userdata/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
-
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
