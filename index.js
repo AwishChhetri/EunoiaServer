@@ -5,7 +5,7 @@ const cors = require('cors');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const env = require('dotenv'); 
-const bcrypt=require("bcrypt")
+const argon2 = require('argon2');
 const app = express();
 const port = 3000;
 
@@ -15,8 +15,6 @@ env.config(); // Initialize dotenv
 
 // Connect to MongoDB using Mongoose
 mongoose.connect(`mongodb+srv://abish:l2TFchymzqLLYAOY@cluster0.btfwxae.mongodb.net/?retryWrites=true&w=majority`,);
-
-
 
 // Create a User schema
 const userSchema = new mongoose.Schema({
@@ -32,7 +30,6 @@ const userSchema = new mongoose.Schema({
 // Create a User model
 const User = mongoose.model('User', userSchema);
 
-
 const authenticateToken = (req, res, next) => {
   const token = req.header('Authorization');
   if (!token) return res.status(401).json({ error: 'Access denied. Token not provided.' });
@@ -45,11 +42,10 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-
 // Signup route with JWT token
 app.post('/signup', async (req, res) => {
   try {
-    const { email,name, phoneNumber, age, maritalStatus, gender, password } = req.body;
+    const { email, name, phoneNumber, age, maritalStatus, gender, password } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -57,19 +53,19 @@ app.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'User with this email already exists.' });
     }
 
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash the password using argon2
+    const hashedPassword = await argon2.hash(password);
 
     // Create a new user with hashed password
-    const newUser = new User({ email,name, password: hashedPassword, phoneNumber, age, maritalStatus, gender });
+    const newUser = new User({ email, name, password: hashedPassword, phoneNumber, age, maritalStatus, gender });
 
     // Save the user to the database
     await newUser.save();
-    console.log(newUser)
+
     // Generate JWT token with email and user ID
     const token = jwt.sign(
-      { userId: newUser._id,name, email, phoneNumber, age, maritalStatus, gender },
-      process.env.JWT_SECRET, // Use the JWT secret from environment variables
+      { userId: newUser._id, name, email, phoneNumber, age, maritalStatus, gender },
+      process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
@@ -81,22 +77,18 @@ app.post('/signup', async (req, res) => {
   }
 });
 
-
-
 app.post('/api/login', async (req, res) => {
-  console.log("heloo")
   try {
     const { email, password } = req.body;
 
     // Find the user with the provided email
     const user = await User.findOne({ email });
-    console.log(user)
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Check if the password matches
-    const passwordMatch = await bcrypt.compare(password, user.password);
+    // Check if the password matches using argon2
+    const passwordMatch = await argon2.verify(user.password, password);
 
     if (!passwordMatch) {
       return res.status(401).json({ error: 'Invalid email or password' });
@@ -109,13 +101,11 @@ app.post('/api/login', async (req, res) => {
 
     // Send the token and user ID in the response
     res.status(200).json({ token, userId: user._id });
-    console.log("Login in")
   } catch (error) {
     console.error('Error during login:', error.message);
     res.status(500).send('Internal Server Error');
   }
 });
-
 
 app.post('/api/payment/orders', async (req, res) => {
   console.log('order');
@@ -172,42 +162,30 @@ app.post('/api/payment/verify', async (req, res) => {
 });
 
 app.get('/userdata/:id', async (req, res) => {
-  // Assuming the requested user ID is in the request parameters
   const requestedUserId = req.params.id;
-  console.log(requestedUserId)
   try {
-    // Fetch user data from the database based on the requested user ID
     const requestedUser = await User.findById(requestedUserId);
 
-    // Check if the requested user exists
     if (!requestedUser) {
       return res.status(404).json({ error: 'User not found' });
+    } else {
+      const userData = {
+        userId: requestedUser._id,
+        name: requestedUser.name,
+        email: requestedUser.email,
+        phoneNumber: requestedUser.phoneNumber,
+        age: requestedUser.age,
+        maritalStatus: requestedUser.maritalStatus,
+        gender: requestedUser.gender,
+      };
+
+      res.status(200).json(userData);
     }
-
-    // Check if the requested user ID matches the authenticated user's ID
-   else{
-    const userData = {
-      userId: requestedUser._id,
-      name: requestedUser.name,
-      email: requestedUser.email,
-      phoneNumber: requestedUser.phoneNumber,
-      age: requestedUser.age,
-      maritalStatus: requestedUser.maritalStatus,
-      gender: requestedUser.gender,
-    };
-
-    res.status(200).json(userData);
-
-   }
-
-    // If it matches, construct the user data response
-    
   } catch (error) {
     console.error('Error fetching user data:', error.message);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
-
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
