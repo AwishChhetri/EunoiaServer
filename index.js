@@ -23,11 +23,38 @@ const userSchema = new mongoose.Schema({
   age: Number,
   maritalStatus: String,
   gender: String,
-  password: String, // Keep password field for demonstration, but remember to hash it in production
+  password: String,
+  personalityTestId:
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PersonalityTest',
+    },
+  
+   // Keep password field for demonstration, but remember to hash it in production
 });
+
+const personalityTestSchema = new mongoose.Schema({
+  openness: Number,
+  conscientiousness: Number,
+  extraversion: Number,
+  agreeableness: Number,
+  neuroticism: Number,
+  personalityDescription: [
+    {
+      trait: String,
+      description: String,
+    },
+  ],
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+});
+
 
 // Create a User model
 const User = mongoose.model('User', userSchema);
+const PersonalityTest = mongoose.model('PersonalityTest', personalityTestSchema);
 
 const authenticateToken = (req, res, next) => {
   const token = req.header('Authorization');
@@ -195,6 +222,72 @@ app.get('/userdata/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+
+app.post('/personality-test/:userId', async (req, res) => {
+  try {
+    const { openness, conscientiousness, extraversion, agreeableness, neuroticism } = req.body;
+    const personalityTestData = {
+      openness,
+      conscientiousness,
+      extraversion,
+      agreeableness,
+      neuroticism,
+      personalityDescription: [
+        {
+          trait: 'Openness',
+          description: 'High scorers are often inventive, open-minded, and ready to embrace new ideas or experiences...',
+        },
+        // Add descriptions for other traits
+      ],
+      user: req.params.userId,
+    };
+
+    const personalityTest = await PersonalityTest.create(personalityTestData);
+    console.log(personalityTest)
+    // Update the User model with the personality test ID
+    const updateUser = await User.findByIdAndUpdate(req.params.userId, { personalityTestId: personalityTest._id });
+    console.log( updateUser)
+    res.status(200).json({
+      message: 'Personality test created successfully',
+      userId: req.params.userId,
+      personalityTestId: personalityTest._id,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+
+// Get personality test by user ID
+app.get('/personality-test/data/:userId', async (req, res) => {
+  try {
+    // Find the user by their ID and get the personalityTestId
+    const user = await User.findById(req.params.userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const personalityTestId = user.personalityTestId;
+
+    // Use the personalityTestId to find the associated PersonalityTest
+    const personalityTestData = await PersonalityTest.findById(personalityTestId);
+
+    if (!personalityTestData) {
+      return res.status(404).json({ error: 'Personality Test not found' });
+    }
+   console.log(personalityTestData)
+    res.status(200).json(personalityTestData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+
+
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
